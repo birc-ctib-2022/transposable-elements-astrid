@@ -7,13 +7,18 @@ from abc import (
     abstractmethod
 )
 
+# index modulos length
+# fast to index into python list
+# test look at what happens when u call __str__
+
+# something we have to implement
+# 
 
 class Genome(ABC):
-    """Representation of a circular enome."""
+    """Representation of a circular genome."""
 
     def __init__(self, n: int):
-        """Create a genome of size n."""
-        ...  # not implemented yet
+        """Create a genome of size n."""    
 
     @abstractmethod
     def insert_te(self, pos: int, length: int) -> int:
@@ -30,6 +35,7 @@ class Genome(ABC):
         Returns a new ID for the transposable element.
         """
         ...  # not implemented yet
+
 
     @abstractmethod
     def copy_te(self, te: int, offset: int) -> int | None:
@@ -84,6 +90,14 @@ class Genome(ABC):
         """
         ...  # not implemented yet
 
+print(['']*5)
+
+test_dict = {'A' : [345, 99], 'B' : [700, 55]}
+
+print(test_dict['A'])
+li = test_dict['A']
+print(li)
+
 
 class ListGenome(Genome):
     """
@@ -94,7 +108,9 @@ class ListGenome(Genome):
 
     def __init__(self, n: int):
         """Create a new genome with length n."""
-        ...  # FIXME
+        self.genome = ['-']*n
+        self.TE_counter = 0
+        self.active_TEs = {}
 
     def insert_te(self, pos: int, length: int) -> int:
         """
@@ -109,10 +125,33 @@ class ListGenome(Genome):
 
         Returns a new ID for the transposable element.
         """
-        ...  # FIXME
-        return -1
+        self.TE_counter += 1
+        TE_ID = self.TE_counter    # transposable elements of different length could start at the same position, so I count instead of using pos in ID
 
-    def copy_te(self, te: int, offset: int) -> int | None:
+        # for te in self.active_TEs:
+        #     if te[0]
+        
+        for i in range(pos, pos+length+1):
+            if self.genome[i] != '-':
+                # overwrite TE with '' in genome
+                dis_TE = self.active_TEs[self.genome[i]]
+                for nuc in range(dis_TE[0],dis_TE[0]+dis_TE[1]+1):  # if I know where the TE starts I can overwrite without looking
+                    self.genome[nuc] = '-'
+                # remove existing TE from dict
+                self.active_TEs.pop(self.genome[i])
+        
+            # insert new TE
+            self.genome[i] = 'TE_ID'
+
+        self.active_TEs[TE_ID] = [pos, length] 
+
+        # give ID, ex. TE5
+        # dictionary with active TEs. {TE1 : [pos, length]}
+
+        return TE_ID
+    
+
+    def copy_te(self, te: int, offset: int) -> int | None:                    # why is te an integer? shouldn't it be a str?
         """
         Copy a transposable element.
 
@@ -126,7 +165,12 @@ class ListGenome(Genome):
 
         If te is not active, return None (and do not copy it).
         """
-        ...  # FIXME
+        if te in active_TEs:    
+        # change pos in dictionary
+            self.active_TEs[te][0] += offset
+            return
+
+        else: return None
 
     def disable_te(self, te: int) -> None:
         """
@@ -136,17 +180,24 @@ class ListGenome(Genome):
         TEs are already inactive, so there is no need to do anything
         for those.
         """
-        ...  # FIXME
+        if te in active_TEs:
+            # overwrite TE with '' in genome
+            dis_TE = self.active_TEs[self.genome[i]]
+            for nuc in range(dis_TE[0],dis_TE[0]+dis_TE[1]+1):
+                self.genome[nuc] = '-'
+            # remove existing TE from dict
+            self.active_TEs.pop(self.genome[i])
+
 
     def active_tes(self) -> list[int]:
         """Get the active TE IDs."""
-        ...  # FIXME
-        return []
+        active_list = [te for te in self.active_TEs]
+        return active_list 
 
     def __len__(self) -> int:
         """Current length of the genome."""
-        ...  # FIXME
-        return 0
+        
+        return len(genome)
 
     def __str__(self) -> str:
         """
