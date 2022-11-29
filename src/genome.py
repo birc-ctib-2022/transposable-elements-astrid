@@ -11,8 +11,6 @@ from abc import (
 # fast to index into python list
 # test look at what happens when u call __str__
 
-# something we have to implement
-# 
 
 class Genome(ABC):
     """Representation of a circular genome."""
@@ -92,11 +90,12 @@ class Genome(ABC):
 
 print(['']*5)
 
-test_dict = {'A' : [345, 99], 'B' : [700, 55]}
+test_dict = {1 : [345, 99, 'A'], 2 : [700, 55, 'A']}
 
-print(test_dict['A'])
-li = test_dict['A']
+print(test_dict[1])
+li = test_dict[1]
 print(li)
+print(["-"*6])
 
 
 class ListGenome(Genome):
@@ -110,7 +109,7 @@ class ListGenome(Genome):
         """Create a new genome with length n."""
         self.genome = ['-']*n
         self.TE_counter = 0
-        self.active_TEs = {}
+        self.TEs = {}
 
     def insert_te(self, pos: int, length: int) -> int:
         """
@@ -126,32 +125,31 @@ class ListGenome(Genome):
         Returns a new ID for the transposable element.
         """
         self.TE_counter += 1
-        TE_ID = self.TE_counter    # transposable elements of different length could start at the same position, so I count instead of using pos in ID
 
-        # for te in self.active_TEs:
-        #     if te[0]
-        
-        for i in range(pos, pos+length+1):
-            if self.genome[i] != '-':
-                # overwrite TE with '' in genome
-                dis_TE = self.active_TEs[self.genome[i]]
-                for nuc in range(dis_TE[0],dis_TE[0]+dis_TE[1]+1):  # if I know where the TE starts I can overwrite without looking
-                    self.genome[nuc] = '-'
-                # remove existing TE from dict
-                self.active_TEs.pop(self.genome[i])
-        
-            # insert new TE
-            self.genome[i] = 'TE_ID'
+        # disable existing TE. If it is active it is continues. 
+        for te in self.TEs:
+            start = self.TEs[te][0]
+            end = self.TEs[te][0] + self.TEs[te][1]
+            if start < pos and pos < end:         
+                self.disable_te(te)
+                break
 
-        self.active_TEs[TE_ID] = [pos, length] 
+        # update genome with insertion
+        self.genome = self.genome[:pos] + ['A']*length + self.genome[pos:]
 
-        # give ID, ex. TE5
-        # dictionary with active TEs. {TE1 : [pos, length]}
+        # update pos for every TE positioned after the insertion
+        for te in self.TEs:
+            start = self.TEs[te][0]
+            if pos <= start:
+                self.TEs[te][0] += length
 
-        return TE_ID
+        # add to dictionary {1 : [pos, length, status}
+        self.TEs[self.TE_counter] = [pos, length, 'A']
+
+        return self.TE_counter
     
 
-    def copy_te(self, te: int, offset: int) -> int | None:                    # why is te an integer? shouldn't it be a str?
+    def copy_te(self, te: int, offset: int) -> int | None:       
         """
         Copy a transposable element.
 
@@ -165,10 +163,11 @@ class ListGenome(Genome):
 
         If te is not active, return None (and do not copy it).
         """
-        if te in active_TEs:    
-        # change pos in dictionary
-            self.active_TEs[te][0] += offset
-            return
+        # if active                                               
+        if self.TEs[te][2] == 'A':
+            pos = self.TEs[te][0]
+            length = self.TEs[te][1] 
+            return self.insert_te((pos + offset) % len(self.genome), length)      # use modulos to make the genome circular
 
         else: return None
 
@@ -180,23 +179,20 @@ class ListGenome(Genome):
         TEs are already inactive, so there is no need to do anything
         for those.
         """
-        if te in active_TEs:
-            # overwrite TE with '' in genome
-            dis_TE = self.active_TEs[self.genome[i]]
-            for nuc in range(dis_TE[0],dis_TE[0]+dis_TE[1]+1):
-                self.genome[nuc] = '-'
-            # remove existing TE from dict
-            self.active_TEs.pop(self.genome[i])
-
+        # update dictionary
+        self.TEs[te][2] = 'D'
+        # update genome
+        pos = self.TEs[te][0]
+        length = self.TEs[te][1] 
+        self.genome[pos:pos+length] = 'x' * length
 
     def active_tes(self) -> list[int]:
         """Get the active TE IDs."""
-        active_list = [te for te in self.active_TEs]
+        active_list = [te for te in self.TEs if self.TEs[te][2] == 'A']
         return active_list 
 
     def __len__(self) -> int:
         """Current length of the genome."""
-        
         return len(genome)
 
     def __str__(self) -> str:
@@ -204,14 +200,14 @@ class ListGenome(Genome):
         Return a string representation of the genome.
 
         Create a string that represents the genome. By nature, it will be
-        linear, but imagine that the last character is immidiatetly followed
+        linear, but imagine that the last character is immediately followed
         by the first.
 
         The genome should start at position 0. Locations with no TE should be
         represented with the character '-', active TEs with 'A', and disabled
         TEs with 'x'.
         """
-        return "FIXME"
+        return ''.join(self.genome)
 
 
 class LinkedListGenome(Genome):
@@ -223,7 +219,9 @@ class LinkedListGenome(Genome):
 
     def __init__(self, n: int):
         """Create a new genome with length n."""
-        ...  # FIXME
+        for i in range(n):
+            Link()
+
 
     def insert_te(self, pos: int, length: int) -> int:
         """
@@ -274,8 +272,12 @@ class LinkedListGenome(Genome):
 
     def __len__(self) -> int:
         """Current length of the genome."""
-        # FIXME
-        return 0
+
+        counter = 0
+        while self.genome:
+            counter += 1
+            self.genome = self.genome.tail
+        return counter
 
     def __str__(self) -> str:
         """
