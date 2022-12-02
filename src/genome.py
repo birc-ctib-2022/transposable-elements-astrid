@@ -13,12 +13,6 @@ from abc import (
     abstractmethod
 )
 
-
-# index modulos length
-# fast to index into python list
-# test look at what happens when u call __str__
-
-
 class Genome(ABC):
     """Representation of a circular genome."""
 
@@ -126,15 +120,15 @@ class ListGenome(Genome):
 
         # disable existing TE. If it is active it is continuous. 
         for te in self.TEs:      
-            if self.TEs[te][2] == 'A':                                       # looking at a max of all the TEs
+            if self.TEs[te][2] == 'A':                                       # looking at at max all the TEs
                 start = self.TEs[te][0]
                 end = self.TEs[te][0] + self.TEs[te][1]
-                if start < pos and pos < end:                               # 
+                if start < pos and pos < end:                                
                     self.disable_te(te)
                     break
 
         # update genome with insertion
-        self.genome = self.genome[:pos] + ['A']*length + self.genome[pos:]   #
+        self.genome = self.genome[:pos] + ['A']*length + self.genome[pos:]   # copying list slices to new list runs in O(n+m)
 
         # update pos for every TE positioned after the insertion
         for te in self.TEs:
@@ -182,13 +176,13 @@ class ListGenome(Genome):
         self.TEs[te][2] = 'D'
         # update genome
         pos = self.TEs[te][0]
-        length = self.TEs[te][1] 
-        self.genome[pos:pos+length] = 'x' * length                                # assigning to list slice in O()
+        length = self.TEs[te][1]
+        self.genome[pos:pos+length] = 'x' * length                                # assigning to list slice in O(m)
 
     def active_tes(self) -> list[int]:
         """Get the active TE IDs."""
-        active_list = [te for te in self.TEs if self.TEs[te][2] == 'A']
-        return active_list 
+        active_list = [te for te in self.TEs if self.TEs[te][2] == 'A']           # list comprehension looking through all items
+        return active_list
 
     def __len__(self) -> int:
         """Current length of the genome."""
@@ -208,7 +202,7 @@ class ListGenome(Genome):
         """
         return ''.join(self.genome)
 
-# I use the doubly linked list implementation
+# I use the doubly linked list implementation and an insert_before and insert_after function
 """Doubly-linked lists."""
 
 T = TypeVar('T')
@@ -226,12 +220,18 @@ class Link(Generic[T]):
         self.prev = p
         self.next = n
 
+def insert_before(link: Link[T], val: T) -> None:
+    """Add a new link containing val after link."""
+    new_link = Link(val, link.prev, link)
+    new_link.prev.next = new_link
+    new_link.next.prev = new_link
+
 def insert_after(link: Link[T], val: T) -> None:
     """Add a new link containing val after link."""
     new_link = Link(val, link, link.next)
     new_link.prev.next = new_link
     new_link.next.prev = new_link
-
+    
 class LinkedListGenome(Genome):
     """
     Representation of a genome.
@@ -276,7 +276,7 @@ class LinkedListGenome(Genome):
 
         # disable existing TE. If it is active it is continuous. 
         for te in self.TEs:
-            if self.TEs[te][2] == 'A':    
+            if self.TEs[te][2] == 'A':
                 start = self.TEs[te][0]
                 end = self.TEs[te][0] + self.TEs[te][1]
                 if start < pos and pos < end:         
@@ -288,14 +288,19 @@ class LinkedListGenome(Genome):
 
         current = self.head.next
         # iterator
-        while current is not self.head:
-            if count == pos:
-                # insert 'A'*length at pos
-                for _ in range(length):
-                    insert_after(current, 'A')    # or insert before? no
-                break
-            current = current.next
-            count += 1
+        if pos == 0:
+            # insert 'A'*length at pos
+            for _ in range(length):
+                insert_before(current, 'A')
+        else:
+            while current is not self.head:
+                if count == pos:
+                    # insert 'A'*length at pos
+                    for _ in range(length):
+                        insert_after(current, 'A')
+                    break
+                current = current.next
+                count += 1
         
         # update pos for every TE positioned after the insertion
         for te in self.TEs:
