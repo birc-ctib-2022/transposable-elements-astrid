@@ -92,14 +92,36 @@ class Genome(ABC):
 
 ```
 
-The `ABC` and `@abstractmethod` just means that this class is not something you can use by itself, but that another class must implement the details. In `src/genome.py` you will find templates for a Python list tand a linked list implementation (without the actual implementation, because you have to implement them).
+The `ABC` and `@abstractmethod` just means that this class is not something you can use by itself, but that another class must implement the details. In `src/genome.py` you will find templates for a Python list and a linked list implementation (without the actual implementation, because you have to implement them).
 
-You are free to implement the genome classes however you want, and using whateer auxilary data structures you desire, as long as one uses a Python list with an element for each nucleotide and the other a linked list with a link for each nucleotide. If you want to implement a third (or fourth or fifth...) version, you are very welcome to do so as well.
+You are free to implement the genome classes however you want, and using whatever auxilary data structures you desire, as long as one uses a Python list with an element for each nucleotide and the other a linked list with a link for each nucleotide. If you want to implement a third (or fourth or fifth...) version, you are very welcome to do so as well.
 
 ## Complexity
 
 When you have implemented the two (or more) classes, describe the complexity of each operation as a function of the genome size (at the time of the operation), and the size of the TE involved (and when copying, the offset you are copying). Put the description here:
 
 **FIXME: OPERATION COMPLEXITY**
+n is length of genome
+m is length of TE
+
+For ListGenome
+Creating a list with length n runs in O(n).
+insert_te: to insert a TE I copy list slices of the genome and add a list of length m at index pos. 
+Copying list slices to new list runs in O(n+m). Worst case the TE hits an existing TE which lengthens running time with 
+O(m). In the end it is just O(n+m).
+copy_te: calls insert_te that runs in O(n+m).
+disable_te: assigning a new value in genome list at index pos and length nucleotides forward. Runs in O(m).
+active_te: O(1)
+len: O(1)
+str: O(n)
+
+For LinkedListGenome
+Creating a linked list with n links runs in O(n).
+insert_te: iterates through, worst case, n counts to reach link at position pos and calls insert_after m times. Gives a running time of O(n+m). Hitting an existing TE adds O(n+m) from disable_te(). O(n+m).
+copy_te: calls insert_te that runs in O(n+m).
+disable_te: reaching link at position pos is O(n) and assigning a new value to m links is O(m). Thus O(n+m).
+active_te: O(1)
+len: looping through all links to count them runs in O(n).
+str: making a list of values as strings runs in O(n) and joining to one string is O(n). So O(n).
 
 In `src/simulate.py` you will find a program that can run simulations and tell you actual time it takes to simulate with different implementations. You can use it to test your analysis. You can modify the parameters to the simulator if you want to explore how they affect the running time.

@@ -1,5 +1,11 @@
 """A circular genome for simulating transposable elements."""
 
+from __future__ import annotations                       # future before everything else
+from typing import (
+    Generic, TypeVar, Iterable,
+    Callable, Protocol
+)
+
 from abc import (
     # A tag that says that we can't use this class except by specialising it
     ABC,
@@ -7,13 +13,11 @@ from abc import (
     abstractmethod
 )
 
-
 class Genome(ABC):
-    """Representation of a circular enome."""
+    """Representation of a circular genome."""
 
     def __init__(self, n: int):
-        """Create a genome of size n."""
-        ...  # not implemented yet
+        """Create a genome of size n."""    
 
     @abstractmethod
     def insert_te(self, pos: int, length: int) -> int:
@@ -30,6 +34,7 @@ class Genome(ABC):
         Returns a new ID for the transposable element.
         """
         ...  # not implemented yet
+
 
     @abstractmethod
     def copy_te(self, te: int, offset: int) -> int | None:
@@ -94,7 +99,9 @@ class ListGenome(Genome):
 
     def __init__(self, n: int):
         """Create a new genome with length n."""
-        ...  # FIXME
+        self.genome = ['-']*n
+        self.TE_counter = 0
+        self.TEs = {}
 
     def insert_te(self, pos: int, length: int) -> int:
         """
@@ -109,10 +116,33 @@ class ListGenome(Genome):
 
         Returns a new ID for the transposable element.
         """
-        ...  # FIXME
-        return -1
+        self.TE_counter += 1
 
-    def copy_te(self, te: int, offset: int) -> int | None:
+        # disable existing TE. If it is active it is continuous. 
+        for te in self.TEs:      
+            if self.TEs[te][2] == 'A':                                       # looking at at max all the TEs
+                start = self.TEs[te][0]
+                end = self.TEs[te][0] + self.TEs[te][1]
+                if start < pos and pos < end:                                
+                    self.disable_te(te)
+                    break
+
+        # update genome with insertion
+        self.genome = self.genome[:pos] + ['A']*length + self.genome[pos:]   # copying list slices to new list runs in O(n+m)
+
+        # update pos for every TE positioned after the insertion
+        for te in self.TEs:
+            start = self.TEs[te][0]
+            if pos <= start:
+                self.TEs[te][0] += length
+
+        # add to dictionary {1 : [pos, length, status}
+        self.TEs[self.TE_counter] = [pos, length, 'A']
+
+        return self.TE_counter
+    
+
+    def copy_te(self, te: int, offset: int) -> int | None:       
         """
         Copy a transposable element.
 
@@ -126,7 +156,13 @@ class ListGenome(Genome):
 
         If te is not active, return None (and do not copy it).
         """
-        ...  # FIXME
+        # if active                                               
+        if self.TEs[te][2] == 'A':
+            pos = self.TEs[te][0]
+            length = self.TEs[te][1] 
+            return self.insert_te((pos + offset) % len(self.genome), length)      # use modulos to make the genome circular
+
+        else: return None
 
     def disable_te(self, te: int) -> None:
         """
@@ -136,33 +172,66 @@ class ListGenome(Genome):
         TEs are already inactive, so there is no need to do anything
         for those.
         """
-        ...  # FIXME
+        # update dictionary
+        self.TEs[te][2] = 'D'
+        # update genome
+        pos = self.TEs[te][0]
+        length = self.TEs[te][1]
+        self.genome[pos:pos+length] = 'x' * length                                # assigning to list slice in O(m)
 
     def active_tes(self) -> list[int]:
         """Get the active TE IDs."""
-        ...  # FIXME
-        return []
+        active_list = [te for te in self.TEs if self.TEs[te][2] == 'A']           # list comprehension looking through all items
+        return active_list
 
     def __len__(self) -> int:
         """Current length of the genome."""
-        ...  # FIXME
-        return 0
+        return len(self.genome)
 
     def __str__(self) -> str:
         """
         Return a string representation of the genome.
 
         Create a string that represents the genome. By nature, it will be
-        linear, but imagine that the last character is immidiatetly followed
+        linear, but imagine that the last character is immediately followed
         by the first.
 
         The genome should start at position 0. Locations with no TE should be
         represented with the character '-', active TEs with 'A', and disabled
         TEs with 'x'.
         """
-        return "FIXME"
+        return ''.join(self.genome)
 
+# I use the doubly linked list implementation and an insert_before and insert_after function
+"""Doubly-linked lists."""
 
+T = TypeVar('T')
+
+class Link(Generic[T]):
+    """Doubly linked link."""
+
+    val: T
+    prev: Link[T]
+    next: Link[T]
+
+    def __init__(self, val: T, p: Link[T], n: Link[T]):
+        """Create a new link and link up prev and next."""
+        self.val = val
+        self.prev = p
+        self.next = n
+
+def insert_before(link: Link[T], val: T) -> None:
+    """Add a new link containing val after link."""
+    new_link = Link(val, link.prev, link)
+    new_link.prev.next = new_link
+    new_link.next.prev = new_link
+
+def insert_after(link: Link[T], val: T) -> None:
+    """Add a new link containing val after link."""
+    new_link = Link(val, link, link.next)
+    new_link.prev.next = new_link
+    new_link.next.prev = new_link
+    
 class LinkedListGenome(Genome):
     """
     Representation of a genome.
@@ -172,7 +241,23 @@ class LinkedListGenome(Genome):
 
     def __init__(self, n: int):
         """Create a new genome with length n."""
-        ...  # FIXME
+        
+        head: Link[T]  # Dummy head link
+
+        # Configure the head link.
+        # We are violating the type invariants this one place,
+        # but only here, so we ask the checker to just ignore it.
+        # Once the head element is configured we promise not to do
+        # it again.
+        self.head = Link(None, None, None)  # type: ignore
+        self.head.prev = self.head
+        self.head.next = self.head
+
+        for _ in range(n):
+            insert_after(self.head, '-')
+
+        self.TEs = {}
+        self.TE_counter = 0
 
     def insert_te(self, pos: int, length: int) -> int:
         """
@@ -187,8 +272,46 @@ class LinkedListGenome(Genome):
 
         Returns a new ID for the transposable element.
         """
-        ...  # FIXME
-        return -1
+        self.TE_counter += 1
+
+        # disable existing TE. If it is active it is continuous. 
+        for te in self.TEs:
+            if self.TEs[te][2] == 'A':
+                start = self.TEs[te][0]
+                end = self.TEs[te][0] + self.TEs[te][1]
+                if start < pos and pos < end:         
+                    self.disable_te(te)
+                    break
+        
+        # update genome with insertion
+        count = 1
+
+        current = self.head.next
+        # iterator
+        if pos == 0:
+            # insert 'A'*length at pos
+            for _ in range(length):
+                insert_before(current, 'A')
+        else:
+            while current is not self.head:
+                if count == pos:
+                    # insert 'A'*length at pos
+                    for _ in range(length):
+                        insert_after(current, 'A')
+                    break
+                current = current.next
+                count += 1
+        
+        # update pos for every TE positioned after the insertion
+        for te in self.TEs:
+            start = self.TEs[te][0]
+            if pos <= start:
+                self.TEs[te][0] += length
+
+        # add to dictionary {1 : [pos, length, status}
+        self.TEs[self.TE_counter] = [pos, length, 'A']
+
+        return self.TE_counter
 
     def copy_te(self, te: int, offset: int) -> int | None:
         """
@@ -204,7 +327,16 @@ class LinkedListGenome(Genome):
 
         If te is not active, return None (and do not copy it).
         """
-        ...  # FIXME
+
+        # if active                                               
+        if self.TEs[te][2] == 'A':
+            pos = self.TEs[te][0]
+            length = self.TEs[te][1]
+        
+            return self.insert_te((pos + offset) % len(self), length)      # use modulos to make the genome circular
+
+        else: return None
+
 
     def disable_te(self, te: int) -> None:
         """
@@ -214,17 +346,40 @@ class LinkedListGenome(Genome):
         TEs are already inactive, so there is no need to do anything
         for those.
         """
-        ...  # FIXME
+        # update dictionary
+        self.TEs[te][2] = 'D'
+        # update genome
+        pos = self.TEs[te][0]
+        length = self.TEs[te][1]
+
+        count = 0
+
+        current = self.head.next
+        # iterator
+        while current is not self.head:
+            if count == pos:
+                for _ in range(length):
+                    # change link value to 'x'
+                    current.val = 'x'
+                    current = current.next
+                break
+            current = current.next
+            count += 1
 
     def active_tes(self) -> list[int]:
         """Get the active TE IDs."""
-        # FIXME
-        return []
+        active_list = [te for te in self.TEs if self.TEs[te][2] == 'A']
+        return active_list
 
     def __len__(self) -> int:
         """Current length of the genome."""
-        # FIXME
-        return 0
+        counter = 0
+        current = self.head.next
+        while current is not self.head:
+            current = current.next
+            counter += 1
+
+        return counter
 
     def __str__(self) -> str:
         """
@@ -238,4 +393,11 @@ class LinkedListGenome(Genome):
         represented with the character '-', active TEs with 'A', and disabled
         TEs with 'x'.
         """
-        return "FIXME"
+        
+        """Get string with the elements going in the next direction."""
+        elms: list[str] = []
+        link = self.head.next
+        while link is not self.head:
+            elms.append(str(link.val))
+            link = link.next
+        return ''.join(elms)

@@ -32,7 +32,7 @@ def run_genome_test(genome_class: Type[Genome]) -> None:
     assert str(genome) == "-----xxxxxAAAAAAAAAAxxxxx-----AAAAAAAAAA----------"
     assert genome.active_tes() == [2, 3]
 
-    # Make TE 4 15 to the leftt of the start of 2
+    # Make TE 4 15 to the left of the start of 2
     assert 4 == genome.copy_te(2, -15)
     assert str(genome) \
         == "-----xxxxxAAAAAAAAAAxxxxx-----AAAAAAAAAA-----AAAAAAAAAA-----"
